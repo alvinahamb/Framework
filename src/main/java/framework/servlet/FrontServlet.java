@@ -1,4 +1,4 @@
-package src;
+package framework.servlet;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -20,7 +20,6 @@ public class FrontServlet extends HttpServlet {
 
     private void affichage(HttpServletRequest req, HttpServletResponse res)
             throws IOException {
-        String path = req.getRequestURI();
-        res.getWriter().println("URL capturée par FrontServlet : " + path);
+        res.getWriter().write("Hello depuis FrontServlet !");
     }
 };
