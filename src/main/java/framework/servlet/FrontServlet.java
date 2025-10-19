@@ -20,6 +20,8 @@ public class FrontServlet extends HttpServlet {
 
     private void affichage(HttpServletRequest req, HttpServletResponse res)
             throws IOException {
-        res.getWriter().write("Hello depuis FrontServlet !");
+        String url = req.getRequestURL().toString();
+        res.getWriter().write("URL reçue : " + url);
     }
+
 };
