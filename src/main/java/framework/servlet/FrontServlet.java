@@ -52,7 +52,7 @@ public class FrontServlet extends HttpServlet {
         ClassScanner classScanner = new ClassScanner().getClassScannerByURL(url, webAppPath);
         if (classScanner != null) {
             res.getWriter().write("Classe trouvee : " + classScanner.getClazz().getName() + "\n");
-            res.getWriter().write("Méthode trouvee : " + classScanner.getMethod().getName() + "\n");
+            res.getWriter().write("Methode trouvee : " + classScanner.getMethod().getName() + "\n");
         } else {
             res.getWriter().write("Aucune classe trouvee pour l'URL : " + url + "\n\n");
         }
