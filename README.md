@@ -1,1 +1,3 @@
 # Framework
+
+mvn clean package
