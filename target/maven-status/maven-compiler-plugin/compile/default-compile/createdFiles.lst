@@ -1,3 +1,4 @@
-framework\annotation\Url.class
 framework\servlet\FrontServlet.class
+framework\annotation\Url.class
+framework\scan\ClassScanner.class
 framework\annotation\Controller.class
