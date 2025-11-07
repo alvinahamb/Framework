@@ -1,6 +1,7 @@
 package framework.servlet;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,28 +47,33 @@ public class FrontServlet extends HttpServlet {
     }
 
     private void affichage(HttpServletRequest req, HttpServletResponse res)
-            throws IOException {
+            throws IOException, ServletException {
         String url = req.getRequestURL().toString();
-        String relativePath = extractRelativePath(url);
-        
-        res.getWriter().write("URL recue : " + url + "\n");
-        res.getWriter().write("Chemin relatif : " + relativePath + "\n\n");
-        
+        PrintWriter writer = res.getWriter();
+        // writer.write("URL recue : " + url + "\n");
+
         ClassScanner classScanner = new ClassScanner().getClassScannerByURL(url, webAppPath);
         if (classScanner != null) {
-            res.getWriter().write("Classe trouvee : " + classScanner.getClazz().getName() + "\n");
-            res.getWriter().write("Methode trouvee : " + classScanner.getMethod().getName() + "\n\n");
-            
-            // Exécuter la méthode trouvée avec réflexion
+            // writer.write("Classe trouvee : " + classScanner.getClazz().getName() + "\n");
+            // writer.write("Methode trouvee : " + classScanner.getMethod().getName() + "\n\n");
+
             try {
                 // Créer une instance de la classe
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
                 
-                // Invoquer la méthode
                 Method method = classScanner.getMethod();
-                // Object result = method.invoke(instance);
+                Object result = method.invoke(instance);
                 
-                // res.getWriter().write("Resultat de l'execution : " + result + "\n");
+                if (method.getReturnType().equals(String.class)) {
+                    writer.write((String) result);
+                } else if (method.getReturnType().equals(Class.forName("framework.scan.ModelView"))) {
+                    framework.scan.ModelView modelView = (framework.scan.ModelView) result;
+                    String view = modelView.getView();
+                    req.getRequestDispatcher(view).forward(req, res);
+                }
+                else {
+                    writer.write("Retour non caracteriel : " + result + "\n");
+                }
             } catch (Exception e) {
                 res.getWriter().write("Erreur lors de l'execution de la methode : " + e.getMessage() + "\n");
                 e.printStackTrace();
@@ -76,21 +82,7 @@ public class FrontServlet extends HttpServlet {
             res.getWriter().write("Aucune classe trouvee pour l'URL : " + url + "\n\n");
         }
         
-        // Mettre à jour la map (le contexte servlet voit automatiquement les changements car c'est la même référence)
         urlToClassScannerMap.put(url, classScanner);
 
-    }
-    
-    private String extractRelativePath(String fullUrl) {
-        // Extraire le chemin après le contexte de l'application
-        try {
-            int contextIndex = fullUrl.indexOf("/Framework-test/");
-            if (contextIndex != -1) {
-                return fullUrl.substring(contextIndex + "/Framework-test".length());
-            }
-            return fullUrl;
-        } catch (Exception e) {
-            return fullUrl;
-        }
     }
 }
