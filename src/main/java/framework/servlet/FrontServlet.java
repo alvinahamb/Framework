@@ -70,7 +70,7 @@ public class FrontServlet extends HttpServlet {
                     framework.scan.ModelView modelView = (framework.scan.ModelView) result;
                     String view = modelView.getView();
                     
-                    // Set all data from ModelView into request attributes
+                    // ajout dans setAttribute
                     if (modelView.getData() != null) {
                         for (String key : modelView.getData().keySet()) {
                             req.setAttribute(key, modelView.getData().get(key));
