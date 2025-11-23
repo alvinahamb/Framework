@@ -69,6 +69,14 @@ public class FrontServlet extends HttpServlet {
                 } else if (method.getReturnType().equals(Class.forName("framework.scan.ModelView"))) {
                     framework.scan.ModelView modelView = (framework.scan.ModelView) result;
                     String view = modelView.getView();
+                    
+                    // Set all data from ModelView into request attributes
+                    if (modelView.getData() != null) {
+                        for (String key : modelView.getData().keySet()) {
+                            req.setAttribute(key, modelView.getData().get(key));
+                        }
+                    }
+                    
                     req.getRequestDispatcher(view).forward(req, res);
                 }
                 else {
