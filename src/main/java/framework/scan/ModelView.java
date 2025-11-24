@@ -8,12 +8,14 @@ public class ModelView {
     private Map<String, Object> data;
 
     public ModelView(String view) {
-        this.view = view;
+        this.view = "/src/main/webapp/" + view;
         this.data = new HashMap<>();
     }
 
     public String getView() {return view;}
-    public void setView(String view) {this.view = view;}
+    public void setView(String view) {
+        this.view = "/src/main/webapp/" + view;
+    }
 
     public Map<String, Object> getData() {return data;}
     public void setData(Map<String, Object> data) {this.data = data;}

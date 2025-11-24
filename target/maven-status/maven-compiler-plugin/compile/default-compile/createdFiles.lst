@@ -1,5 +1,6 @@
 framework\servlet\FrontServlet.class
 framework\annotation\Url.class
+framework\annotation\RequestParam.class
 framework\scan\ClassScanner.class
 framework\annotation\Controller.class
 framework\scan\ModelView.class
