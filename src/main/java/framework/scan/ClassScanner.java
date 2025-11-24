@@ -8,7 +8,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import framework.annotation.Url;
-import framework.annotation.Controller;
+import framework.annotation.*;
+
 
 public class ClassScanner {
     private Class<?> clazz;
@@ -201,6 +202,34 @@ public class ClassScanner {
                         // Object convertedValue = convertValue(value, type);
                         // this.parameterValues.put(key, convertedValue);
                         break;
+                    }
+                    else if (methodParam.isAnnotationPresent(RequestParam.class)) {
+                        RequestParam requestParam = methodParam.getAnnotation(RequestParam.class);
+                        if (requestParam.value().equals(keyValue[0])) {
+                            Class<?> type = methodParam.getType();
+                            if (type.isPrimitive()) {
+                                // Pour les types primitifs numériques: initialiser à 0
+                                if (type == int.class || type == long.class || type == short.class || type == byte.class) {
+                                    this.parameterValues.put(key, 0);
+                                }
+                                // Pour float et double: initialiser à 0.0
+                                else if (type == double.class || type == float.class) {
+                                    this.parameterValues.put(key, 0.0);
+                                }
+                                // Pour boolean: initialiser à false
+                                else if (type == boolean.class) {
+                                    this.parameterValues.put(key, false);
+                                }
+                                // Pour char: initialiser à '\0' (caractère nul)
+                                else if (type == char.class) {
+                                    this.parameterValues.put(key, '\0');
+                                }
+                            } else {
+                                // Pour les objets (String, Integer, etc.): initialiser à null
+                                this.parameterValues.put(key, null);
+                            }
+                            break;
+                        }
                     }
                 }
             }
