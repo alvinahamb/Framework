@@ -2,8 +2,10 @@ package framework.scan;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import framework.annotation.Url;
 import framework.annotation.Controller;
@@ -12,6 +14,7 @@ public class ClassScanner {
     private Class<?> clazz;
     private List<Method> methods;
     private Method method;
+    private HashMap<String, Object> parameterValues;
 
     public ClassScanner() {
     }
@@ -19,6 +22,7 @@ public class ClassScanner {
     public ClassScanner(Class<?> clazz, List<Method> methods) {
         this.clazz = clazz;
         this.methods = methods;
+        this.parameterValues = new HashMap<>();
     }
 
     public Class<?> getClazz() {
@@ -44,6 +48,37 @@ public class ClassScanner {
     public Method setMethod(Method method) {
         this.method = method;
         return method;
+    }
+
+    public HashMap<String, Object> getParameterValues() {
+        return parameterValues;
+    }
+
+    public void setParameterValues(HashMap<String, Object> parameterValues) {
+        this.parameterValues = parameterValues;
+    }
+
+    public Object[] getArgsForMethod(Method method) {
+        Parameter[] params = method.getParameters();
+        Object[] args = new Object[params.length];
+        for (int i = 0; i < params.length; i++) {
+            String name = params[i].getName();
+            Class<?> type = params[i].getType();
+            Object value = this.parameterValues.get(name);
+            if (value == null && type.isPrimitive()) {
+                if (type == int.class || type == long.class || type == short.class || type == byte.class) {
+                    value = 0;
+                } else if (type == double.class || type == float.class) {
+                    value = 0.0;
+                } else if (type == boolean.class) {
+                    value = false;
+                } else if (type == char.class) {
+                    value = '\0';
+                }
+            }
+            args[i] = value;
+        }
+        return args;
     }
 
     public List<ClassScanner> getClassesWithMethods(String webAppPath) {
@@ -99,10 +134,20 @@ public class ClassScanner {
         }
     }
 
-    public boolean URLScanner(String relativePath,String methodURL){
+    public boolean URLScanner(String relativePath, String methodURL, Method method) {
+        boolean urlQ = false;
+        // System.out.println("Relative Path: " + relativePath);
+        // System.out.println(relativePath.contains("?")+" contains ?");
+        String[] urlPartsQ = new String[2];
+        if (relativePath.contains("?")) {
+            urlPartsQ = relativePath.split("\\?");
+            relativePath = urlPartsQ[0];
+            urlQ = true;
+        }
         String[] urlParts = relativePath.split("/");
         String[] methodParts = methodURL.split("/");
-        System.out.println("Comparing parts: " + Arrays.toString(urlParts) + " with " + Arrays.toString(methodParts));
+        // System.out.println("Comparing parts: " + Arrays.toString(urlParts) + " with "
+        // + Arrays.toString(methodParts));
         if (urlParts.length != methodParts.length) {
             return false;
         }
@@ -115,8 +160,84 @@ public class ClassScanner {
                 return false;
             }
         }
+        this.parameterValues = new HashMap<>();
+        // System.out.println("URL matched without query params.: " + urlQ);
+        if (urlQ) {
+            String queryString = urlPartsQ[1];
+            String[] queryParams = queryString.split("&");
+            Parameter[] methodParams = method.getParameters();
+            for (String param : queryParams) {
+                // System.out.println("Checking query param: " + param);
+                String[] keyValue = param.split("=");
+                String key = keyValue[0];
+                String value = keyValue[1];
+                // System.out.println("Key: " + keyValue[0] + ", Value: " + keyValue[1]);
+                for (Parameter methodParam : methodParams) {
+                    System.out.println("Method param: " + methodParam.getName());
+                    if (methodParam.getName().equals(keyValue[0])) {
+                        System.out.println("Matched query param: " + keyValue[0]);
+                        Class<?> type = methodParam.getType();
+                        if (type.isPrimitive()) {
+                            // Pour les types primitifs numériques: initialiser à 0
+                            if (type == int.class || type == long.class || type == short.class || type == byte.class) {
+                                this.parameterValues.put(key, 0);
+                            }
+                            // Pour float et double: initialiser à 0.0
+                            else if (type == double.class || type == float.class) {
+                                this.parameterValues.put(key, 0.0);
+                            }
+                            // Pour boolean: initialiser à false
+                            else if (type == boolean.class) {
+                                this.parameterValues.put(key, false);
+                            }
+                            // Pour char: initialiser à '\0' (caractère nul)
+                            else if (type == char.class) {
+                                this.parameterValues.put(key, '\0');
+                            }
+                        } else {
+                            // Pour les objets (String, Integer, etc.): initialiser à null
+                            this.parameterValues.put(key, null);
+                        }
+                        // Object convertedValue = convertValue(value, type);
+                        // this.parameterValues.put(key, convertedValue);
+                        break;
+                    }
+                }
+            }
+        }
         return true;
     }
+
+    // private Object convertValue(String value, Class<?> targetType) {
+    // try {
+    // if (targetType == String.class) {
+    // return value;
+    // } else if (targetType == int.class || targetType == Integer.class) {
+    // return Integer.parseInt(value);
+    // } else if (targetType == long.class || targetType == Long.class) {
+    // return Long.parseLong(value);
+    // } else if (targetType == double.class || targetType == Double.class) {
+    // return Double.parseDouble(value);
+    // } else if (targetType == float.class || targetType == Float.class) {
+    // return Float.parseFloat(value);
+    // } else if (targetType == boolean.class || targetType == Boolean.class) {
+    // return Boolean.parseBoolean(value);
+    // } else if (targetType == short.class || targetType == Short.class) {
+    // return Short.parseShort(value);
+    // } else if (targetType == byte.class || targetType == Byte.class) {
+    // return Byte.parseByte(value);
+    // }
+    // return value;
+    // } catch (NumberFormatException e) {
+    // System.err.println("Erreur de conversion pour " + value + " vers " +
+    // targetType.getName());
+    // // Retourner la valeur par défaut en cas d'erreur
+    // if (targetType.isPrimitive()) {
+    // return 0;
+    // }
+    // return null;
+    // }
+    // }
 
     public ClassScanner getClassScannerByURL(String fullUrl, String webAppPath) {
         // Extraire le chemin relatif de l'URL
@@ -130,17 +251,11 @@ public class ClassScanner {
                     if (method.isAnnotationPresent(Url.class)) {
                         Url urlAnnotation = method.getAnnotation(Url.class);
                         System.out.println("test.");
-                        System.out.println(URLScanner(relativePath, urlAnnotation.value()));
-                        if(URLScanner(relativePath, urlAnnotation.value())==true){ 
+                        System.out.println(URLScanner(relativePath, urlAnnotation.value(), method));
+                        if (URLScanner(relativePath, urlAnnotation.value(), method) == true) {
                             classScanner.setMethod(method);
                             return classScanner;
                         }
-                        // System.out.println("ok.");
-                        // System.out.println("Comparing: " + relativePath + " with " + urlAnnotation.value());
-                        // if (relativePath.equals(urlAnnotation.value())) {
-                        //     classScanner.setMethod(method);
-                        //     return classScanner;
-                        // }
                     }
                 }
             }

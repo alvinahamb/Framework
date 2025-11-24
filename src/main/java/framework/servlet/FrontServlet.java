@@ -48,7 +48,11 @@ public class FrontServlet extends HttpServlet {
 
     private void affichage(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        String url = req.getRequestURL().toString();
+                // Ajout des valeurs apres ? dans l'url ex: /test1/method3/etudiant?name=abc&id=5
+        String url = req.getRequestURI();
+        if (req.getQueryString() != null) {
+            url += "?" + req.getQueryString();
+        }
         PrintWriter writer = res.getWriter();
         // writer.write("URL recue : " + url + "\n");
 
@@ -62,7 +66,8 @@ public class FrontServlet extends HttpServlet {
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
                 
                 Method method = classScanner.getMethod();
-                Object result = method.invoke(instance);
+                Object[] args = classScanner.getArgsForMethod(method);
+                Object result = method.invoke(instance, args);
                 
                 if (method.getReturnType().equals(String.class)) {
                     writer.write((String) result);
