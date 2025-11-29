@@ -60,15 +60,16 @@ public class FrontServlet extends HttpServlet {
         if (classScanner != null) {
             // writer.write("Classe trouvee : " + classScanner.getClazz().getName() + "\n");
             // writer.write("Methode trouvee : " + classScanner.getMethod().getName() + "\n\n");
-
             try {
                 // Créer une instance de la classe
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
-                
                 Method method = classScanner.getMethod();
-                Object[] args = classScanner.getArgsForMethod(method);
+                Object[] args = classScanner.getArgsForMethod();
+                System.out.println("Arguments pour la methode : ");
+                for (Object arg : args) {
+                    System.out.println(" - " + arg);
+                }
                 Object result = method.invoke(instance, args);
-                
                 if (method.getReturnType().equals(String.class)) {
                     writer.write((String) result);
                 } else if (method.getReturnType().equals(Class.forName("framework.scan.ModelView"))) {
