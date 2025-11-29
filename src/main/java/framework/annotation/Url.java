@@ -9,4 +9,5 @@ import java.lang.annotation.ElementType;
 @Target(ElementType.METHOD)
 public @interface Url {
     String value(); // l'URL
+    String method() default "GET"; // Méthode HTTP
 }
