@@ -7,9 +7,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import framework.annotation.Url;
-import framework.annotation.*;
 
+import framework.annotation.*;
 
 public class ClassScanner {
     private Class<?> clazz;
@@ -59,13 +58,19 @@ public class ClassScanner {
         this.parameterValues = parameterValues;
     }
 
-    public Object[] getArgsForMethod(Method method) {
-        Parameter[] params = method.getParameters();
+    public Object[] getArgsForMethod() {
+        Parameter[] params = this.method.getParameters();
         Object[] args = new Object[params.length];
         for (int i = 0; i < params.length; i++) {
-            String name = params[i].getName();
+            String key;
+            if (params[i].isAnnotationPresent(RequestParam.class)) {
+                RequestParam requestParam = params[i].getAnnotation(RequestParam.class);
+                key = requestParam.value();
+            } else {
+                key = params[i].getName();
+            }
             Class<?> type = params[i].getType();
-            Object value = this.parameterValues.get(name);
+            Object value = this.parameterValues.get(key);
             if (value == null && type.isPrimitive()) {
                 if (type == int.class || type == long.class || type == short.class || type == byte.class) {
                     value = 0;
@@ -135,7 +140,7 @@ public class ClassScanner {
         }
     }
 
-    public boolean URLScanner(String relativePath, String methodURL, Method method) {
+    public boolean URLScanner(String relativePath, String methodURL) {
         boolean urlQ = false;
         // System.out.println("Relative Path: " + relativePath);
         // System.out.println(relativePath.contains("?")+" contains ?");
@@ -153,82 +158,51 @@ public class ClassScanner {
             return false;
         }
 
+        Parameter[] methodParameters = this.method.getParameters();
+        this.parameterValues = new HashMap<>();
         for (int i = 0; i < urlParts.length; i++) {
             if (methodParts[i].startsWith("{") && methodParts[i].endsWith("}")) {
+                String paramName = methodParts[i].substring(1, methodParts[i].length() - 1);
+                String paramValue = urlParts[i];
+                // Trouver le type du paramètre dans la méthode
+                for (Parameter methodParam : methodParameters) {
+                    if (methodParam.getName().equals(paramName)) {
+                        Class<?> type = methodParam.getType();
+                        Object convertedValue = convertValue(paramValue, type);
+                        this.parameterValues.put(paramName, convertedValue);
+                        break;
+                    }
+                }
                 continue;
             }
             if (!urlParts[i].equals(methodParts[i])) {
                 return false;
             }
         }
-        this.parameterValues = new HashMap<>();
         // System.out.println("URL matched without query params.: " + urlQ);
         if (urlQ) {
             String queryString = urlPartsQ[1];
             String[] queryParams = queryString.split("&");
-            Parameter[] methodParams = method.getParameters();
+            Parameter[] methodParams = this.method.getParameters();
             for (String param : queryParams) {
                 // System.out.println("Checking query param: " + param);
                 String[] keyValue = param.split("=");
-                String key = keyValue[0];
                 String value = keyValue[1];
+                String key = keyValue[0];
                 // System.out.println("Key: " + keyValue[0] + ", Value: " + keyValue[1]);
                 for (Parameter methodParam : methodParams) {
-                    System.out.println("Method param: " + methodParam.getName());
+                    // System.out.println("Method param: " + methodParam.getName());
                     if (methodParam.getName().equals(keyValue[0])) {
-                        System.out.println("Matched query param: " + keyValue[0]);
+                        // System.out.println("Matched query param: " + keyValue[0]);
                         Class<?> type = methodParam.getType();
-                        if (type.isPrimitive()) {
-                            // Pour les types primitifs numériques: initialiser à 0
-                            if (type == int.class || type == long.class || type == short.class || type == byte.class) {
-                                this.parameterValues.put(key, 0);
-                            }
-                            // Pour float et double: initialiser à 0.0
-                            else if (type == double.class || type == float.class) {
-                                this.parameterValues.put(key, 0.0);
-                            }
-                            // Pour boolean: initialiser à false
-                            else if (type == boolean.class) {
-                                this.parameterValues.put(key, false);
-                            }
-                            // Pour char: initialiser à '\0' (caractère nul)
-                            else if (type == char.class) {
-                                this.parameterValues.put(key, '\0');
-                            }
-                        } else {
-                            // Pour les objets (String, Integer, etc.): initialiser à null
-                            this.parameterValues.put(key, null);
-                        }
-                        // Object convertedValue = convertValue(value, type);
-                        // this.parameterValues.put(key, convertedValue);
-                        break;
-                    }
-                    else if (methodParam.isAnnotationPresent(RequestParam.class)) {
+                        Object convertedValue = convertValue(value, type);
+                        this.parameterValues.put(methodParam.getName(), convertedValue);
+                    } else if (methodParam.isAnnotationPresent(RequestParam.class)) {
                         RequestParam requestParam = methodParam.getAnnotation(RequestParam.class);
                         if (requestParam.value().equals(keyValue[0])) {
                             Class<?> type = methodParam.getType();
-                            if (type.isPrimitive()) {
-                                // Pour les types primitifs numériques: initialiser à 0
-                                if (type == int.class || type == long.class || type == short.class || type == byte.class) {
-                                    this.parameterValues.put(key, 0);
-                                }
-                                // Pour float et double: initialiser à 0.0
-                                else if (type == double.class || type == float.class) {
-                                    this.parameterValues.put(key, 0.0);
-                                }
-                                // Pour boolean: initialiser à false
-                                else if (type == boolean.class) {
-                                    this.parameterValues.put(key, false);
-                                }
-                                // Pour char: initialiser à '\0' (caractère nul)
-                                else if (type == char.class) {
-                                    this.parameterValues.put(key, '\0');
-                                }
-                            } else {
-                                // Pour les objets (String, Integer, etc.): initialiser à null
-                                this.parameterValues.put(key, null);
-                            }
-                            break;
+                            Object convertedValue = convertValue(value, type);
+                            this.parameterValues.put(requestParam.value(), convertedValue);
                         }
                     }
                 }
@@ -237,36 +211,38 @@ public class ClassScanner {
         return true;
     }
 
-    // private Object convertValue(String value, Class<?> targetType) {
-    // try {
-    // if (targetType == String.class) {
-    // return value;
-    // } else if (targetType == int.class || targetType == Integer.class) {
-    // return Integer.parseInt(value);
-    // } else if (targetType == long.class || targetType == Long.class) {
-    // return Long.parseLong(value);
-    // } else if (targetType == double.class || targetType == Double.class) {
-    // return Double.parseDouble(value);
-    // } else if (targetType == float.class || targetType == Float.class) {
-    // return Float.parseFloat(value);
-    // } else if (targetType == boolean.class || targetType == Boolean.class) {
-    // return Boolean.parseBoolean(value);
-    // } else if (targetType == short.class || targetType == Short.class) {
-    // return Short.parseShort(value);
-    // } else if (targetType == byte.class || targetType == Byte.class) {
-    // return Byte.parseByte(value);
-    // }
-    // return value;
-    // } catch (NumberFormatException e) {
-    // System.err.println("Erreur de conversion pour " + value + " vers " +
-    // targetType.getName());
-    // // Retourner la valeur par défaut en cas d'erreur
-    // if (targetType.isPrimitive()) {
-    // return 0;
-    // }
-    // return null;
-    // }
-    // }
+    private Object convertValue(String value, Class<?> targetType) {
+        try {
+            if (targetType == String.class) {
+                return value;
+            } else if (targetType == int.class || targetType == Integer.class) {
+                return Integer.parseInt(value);
+            } else if (targetType == long.class || targetType == Long.class) {
+                return Long.parseLong(value);
+            } else if (targetType == double.class || targetType == Double.class) {
+                return Double.parseDouble(value);
+            } else if (targetType == float.class || targetType == Float.class) {
+                return Float.parseFloat(value);
+            } else if (targetType == boolean.class || targetType == Boolean.class) {
+                return Boolean.parseBoolean(value);
+            } else if (targetType == short.class || targetType == Short.class) {
+                return Short.parseShort(value);
+            } else if (targetType == byte.class || targetType == Byte.class) {
+                return Byte.parseByte(value);
+            } else if (targetType == char.class || targetType == Character.class) {
+                return value.charAt(0);
+            }
+            return value;
+        } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
+            System.err.println("Erreur de conversion pour " + value + " vers " +
+                    targetType.getName());
+            // Retourner la valeur par défaut en cas d'erreur
+            if (targetType.isPrimitive()) {
+                return 0;
+            }
+            return null;
+        }
+    }
 
     public ClassScanner getClassScannerByURL(String fullUrl, String webAppPath) {
         // Extraire le chemin relatif de l'URL
@@ -277,12 +253,14 @@ public class ClassScanner {
             Class<?> clazz = classScanner.getClazz();
             if (clazz.isAnnotationPresent(Controller.class)) {
                 for (Method method : classScanner.getMethods()) {
+                    this.method = method;
                     if (method.isAnnotationPresent(Url.class)) {
                         Url urlAnnotation = method.getAnnotation(Url.class);
-                        System.out.println("test.");
-                        System.out.println(URLScanner(relativePath, urlAnnotation.value(), method));
-                        if (URLScanner(relativePath, urlAnnotation.value(), method) == true) {
-                            classScanner.setMethod(method);
+                        // System.out.println("test.");
+                        // System.out.println(URLScanner(relativePath, urlAnnotation.value()));
+                        if (URLScanner(relativePath, urlAnnotation.value()) == true) {
+                            classScanner.setMethod(this.method);
+                            classScanner.setParameterValues(new HashMap<>(this.parameterValues));
                             return classScanner;
                         }
                     }
