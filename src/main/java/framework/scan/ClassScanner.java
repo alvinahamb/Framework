@@ -244,7 +244,7 @@ public class ClassScanner {
         }
     }
 
-    public ClassScanner getClassScannerByURL(String fullUrl, String webAppPath) {
+    public ClassScanner getClassScannerByURL(String fullUrl, String webAppPath, String httpMethod) {
         // Extraire le chemin relatif de l'URL
         String relativePath = extractRelativePath(fullUrl);
 
@@ -256,6 +256,10 @@ public class ClassScanner {
                     this.method = method;
                     if (method.isAnnotationPresent(Url.class)) {
                         Url urlAnnotation = method.getAnnotation(Url.class);
+                        String annotationMethod = urlAnnotation.method();
+                        if (!annotationMethod.equalsIgnoreCase(httpMethod)) {
+                            continue;
+                        }
                         // System.out.println("test.");
                         // System.out.println(URLScanner(relativePath, urlAnnotation.value()));
                         if (URLScanner(relativePath, urlAnnotation.value()) == true) {

@@ -53,10 +53,11 @@ public class FrontServlet extends HttpServlet {
         if (req.getQueryString() != null) {
             url += "?" + req.getQueryString();
         }
+        String httpMethod = req.getMethod();
         PrintWriter writer = res.getWriter();
         // writer.write("URL recue : " + url + "\n");
 
-        ClassScanner classScanner = new ClassScanner().getClassScannerByURL(url, webAppPath);
+        ClassScanner classScanner = new ClassScanner().getClassScannerByURL(url, webAppPath, httpMethod);
         if (classScanner != null) {
             // writer.write("Classe trouvee : " + classScanner.getClazz().getName() + "\n");
             // writer.write("Methode trouvee : " + classScanner.getMethod().getName() + "\n\n");
