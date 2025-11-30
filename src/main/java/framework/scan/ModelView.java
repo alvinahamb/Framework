@@ -5,6 +5,7 @@ import java.util.HashMap;
 
 public class ModelView {
     private String view;
+    // donnees associees a la vue
     private Map<String, Object> data;
 
     public ModelView(String view) {
