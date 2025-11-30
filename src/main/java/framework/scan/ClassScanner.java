@@ -7,6 +7,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 
 import framework.annotation.*;
 
@@ -211,6 +215,81 @@ public class ClassScanner {
         return true;
     }
 
+    public Map<String, Object> getAllPostParam(HttpServletRequest req) {
+        Map<String, Object> result = new HashMap<>();
+        Map<String, String[]> parameterMap = req.getParameterMap();
+        for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
+            String paramName = entry.getKey();
+            String[] paramValues = entry.getValue();
+            List<Object> convertedValues = new ArrayList<>();
+            for (String value : paramValues) {
+                Object converted = null;
+                try {
+                    converted = Integer.parseInt(value);
+                } catch (NumberFormatException e) {
+                    try {
+                        converted = Double.parseDouble(value);
+                    } catch (NumberFormatException ee) {
+                        try {
+                            converted = Long.parseLong(value);
+                        } catch (NumberFormatException eee) {
+                            try {
+                                converted = Float.parseFloat(value);
+                            } catch (NumberFormatException eeee) {
+                                try {
+                                    converted = LocalDate.parse(value);
+                                } catch (Exception eeeee) {
+                                    if ("true".equalsIgnoreCase(value) || "on".equalsIgnoreCase(value)) {
+                                        converted = true;
+                                    } else if ("false".equalsIgnoreCase(value) || "off".equalsIgnoreCase(value)) {
+                                        converted = false;
+                                    } else {
+                                        converted = value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                convertedValues.add(converted);
+            }
+            if (convertedValues.size() == 1) {
+                result.put(paramName, convertedValues.get(0));
+            } else {
+                boolean allStrings = true;
+                for (Object v : convertedValues) {
+                    if (!(v instanceof String)) {
+                        allStrings = false;
+                        break;
+                    }
+                }
+                if (allStrings) {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < convertedValues.size(); i++) {
+                        if (i > 0) sb.append(", ");
+                        sb.append(convertedValues.get(i));
+                    }
+                    result.put(paramName, sb.toString());
+                } else {
+                    result.put(paramName, convertedValues);
+                }
+            }
+        }
+        // for (Map.Entry<String, Object> entry : result.entrySet()) {
+        // String paramName = entry.getKey();
+        // Object paramValues = entry.getValue();
+        // System.out.println("Paramètre : " + paramName);
+        // if (paramValues instanceof List) {
+        // for (Object value : (List<?>) paramValues) {
+        // System.out.println(" - Valeur : " + value);
+        // }
+        // } else {
+        // System.out.println(" - Valeur : " + paramValues);
+        // }
+        // }
+        return result;
+    }
+
     private Object convertValue(String value, Class<?> targetType) {
         try {
             if (targetType == String.class) {
@@ -260,6 +339,15 @@ public class ClassScanner {
                         if (!annotationMethod.equalsIgnoreCase(httpMethod)) {
                             continue;
                         }
+                        if (method.getAnnotation(Url.class).method().equalsIgnoreCase("POST") == true) {
+                            System.out.println("POST method detected.");
+                            if (relativePath.equals(urlAnnotation.value())) {
+                                System.out.println("hita");
+                                classScanner.setMethod(this.method);
+                                return classScanner;
+                            }
+                        }
+                        // System.out.println(method.getAnnotation(Url.class).method());
                         // System.out.println("test.");
                         // System.out.println(URLScanner(relativePath, urlAnnotation.value()));
                         if (URLScanner(relativePath, urlAnnotation.value()) == true) {
