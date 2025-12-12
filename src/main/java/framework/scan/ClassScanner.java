@@ -19,6 +19,7 @@ public class ClassScanner {
     private List<Method> methods;
     private Method method;
     private HashMap<String, Object> parameterValues;
+    private boolean mappedFunction = false;
 
     public ClassScanner() {
     }
@@ -89,6 +90,90 @@ public class ClassScanner {
             args[i] = value;
         }
         return args;
+    }
+
+    // Bind arguments using request parameters, supporting POJO object arguments
+    public Object[] getArgsForMethod(HttpServletRequest req) {
+        Parameter[] params = this.method.getParameters();
+        Object[] args = new Object[params.length];
+        for (int i = 0; i < params.length; i++) {
+            Parameter p = params[i];
+            String key = p.isAnnotationPresent(RequestParam.class) ? p.getAnnotation(RequestParam.class).value()
+                    : p.getName();
+            Class<?> type = p.getType();
+
+            // Direct support for request/response injection
+            if (type.getName().equals("jakarta.servlet.http.HttpServletRequest")) {
+                args[i] = req;
+                continue;
+            }
+
+            if (isSimpleType(type)) {
+                // Try path/query captured values first
+                Object v = this.parameterValues != null ? this.parameterValues.get(key) : null;
+                if (v == null) {
+                    String raw = req.getParameter(key);
+                    v = raw != null ? convertValue(raw, type) : getDefaultForPrimitive(type);
+                }
+                args[i] = v;
+            } else if (Map.class.isAssignableFrom(type)) {
+                args[i] = getAllPostParam(req);
+            } else {
+                // Treat as POJO: instantiate and populate fields from request params
+                try {
+                    Object pojo = type.getDeclaredConstructor().newInstance();
+                    // Support paramName.field and plain field names
+                    java.lang.reflect.Field[] fields = type.getDeclaredFields();
+                    for (java.lang.reflect.Field f : fields) {
+                        String fname = f.getName();
+                        String prefixed = key + "." + fname;
+                        String raw = req.getParameter(prefixed);
+                        if (raw == null) {
+                            raw = req.getParameter(fname);
+                        }
+                        if (raw == null && this.parameterValues != null) {
+                            Object captured = this.parameterValues.get(prefixed);
+                            if (captured == null) captured = this.parameterValues.get(fname);
+                            if (captured instanceof String) raw = (String) captured;
+                        }
+                        if (raw != null) {
+                            Object converted = convertValue(raw, f.getType());
+                            boolean accessible = f.canAccess(pojo);
+                            if (!accessible) f.setAccessible(true);
+                            try {
+                                f.set(pojo, converted);
+                            } finally {
+                                if (!accessible) f.setAccessible(false);
+                            }
+                        }
+                    }
+                    args[i] = pojo;
+                } catch (Exception e) {
+                    System.err.println("Failed to bind POJO argument for type " + type.getName() + ": " + e);
+                    args[i] = null;
+                }
+            }
+        }
+        return args;
+    }
+
+    private boolean isSimpleType(Class<?> type) {
+        return type.isPrimitive() || type == String.class || type == Integer.class || type == Long.class
+                || type == Double.class || type == Float.class || type == Boolean.class || type == Short.class
+                || type == Byte.class || type == Character.class;
+    }
+
+    private Object getDefaultForPrimitive(Class<?> type) {
+        if (type == int.class || type == long.class || type == short.class || type == byte.class) {
+            return 0;
+        } else if (type == double.class || type == float.class) {
+            return 0.0;
+        } else if (type == boolean.class) {
+            return false;
+        } else if (type == char.class) {
+            return '\0';
+        }
+        return null;
     }
 
     public List<ClassScanner> getClassesWithMethods(String webAppPath) {
@@ -266,7 +351,8 @@ public class ClassScanner {
                 if (allStrings) {
                     StringBuilder sb = new StringBuilder();
                     for (int i = 0; i < convertedValues.size(); i++) {
-                        if (i > 0) sb.append(", ");
+                        if (i > 0)
+                            sb.append(", ");
                         sb.append(convertedValues.get(i));
                     }
                     result.put(paramName, sb.toString());
@@ -326,7 +412,7 @@ public class ClassScanner {
     public ClassScanner getClassScannerByURL(String fullUrl, String webAppPath, String httpMethod) {
         // Extraire le chemin relatif de l'URL
         String relativePath = extractRelativePath(fullUrl);
-
+        this.mappedFunction = false;
         List<ClassScanner> classScanners = this.getClassesWithMethods(webAppPath);
         for (ClassScanner classScanner : classScanners) {
             Class<?> clazz = classScanner.getClazz();
@@ -343,6 +429,10 @@ public class ClassScanner {
                             System.out.println("POST method detected.");
                             if (relativePath.equals(urlAnnotation.value())) {
                                 System.out.println("hita");
+                                Object[] args = classScanner.getArgsForMethod();
+                                // if (args.length == 1 && args[1].equals(HashMap<String, Object>)) {
+                                //     mappedFunction = true;
+                                // }
                                 classScanner.setMethod(this.method);
                                 return classScanner;
                             }
