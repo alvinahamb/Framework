@@ -81,10 +81,11 @@ public class FrontServlet extends HttpServlet {
                 // Créer une instance de la classe
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
                 Method method = classScanner.getMethod();
-                Object[] args = classScanner.getArgsForMethod();
+                Object[] args = classScanner.getArgsForMethod(req);
                 Object result = null;
                 if (method.getAnnotation(Url.class).method().equalsIgnoreCase("POST") == true) {
-                    result = method.invoke(instance, classScanner.getAllPostParam(req));
+                    // Bind POST using request-aware binder (supports POJO)
+                    result = method.invoke(instance, classScanner.getArgsForMethod(req));
                 } else {
                     result = method.invoke(instance, args);
                 }
