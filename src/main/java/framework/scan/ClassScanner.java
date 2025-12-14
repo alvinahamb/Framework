@@ -22,6 +22,7 @@ public class ClassScanner {
     private boolean mappedFunction = false;
 
     public ClassScanner() {
+        this.parameterValues = new HashMap<>();
     }
 
     public ClassScanner(Class<?> clazz, List<Method> methods) {
@@ -121,9 +122,17 @@ public class ClassScanner {
             } else {
                 // Treat as POJO: instantiate and populate fields from request params
                 try {
-                    Object pojo = type.getDeclaredConstructor().newInstance();
+                    Class<?> pojoClass = type;
+                    if (type == Object.class) {
+                        String className = req.getParameter("class");
+                        if (className != null) {
+                            String capitalized = className.substring(0, 1).toUpperCase() + className.substring(1);
+                            pojoClass = Class.forName("dept." + capitalized);
+                        }
+                    }
+                    Object pojo = pojoClass.getDeclaredConstructor().newInstance();
                     // Support paramName.field and plain field names
-                    java.lang.reflect.Field[] fields = type.getDeclaredFields();
+                    java.lang.reflect.Field[] fields = pojoClass.getDeclaredFields();
                     for (java.lang.reflect.Field f : fields) {
                         String fname = f.getName();
                         String prefixed = key + "." + fname;
@@ -429,7 +438,7 @@ public class ClassScanner {
                             System.out.println("POST method detected.");
                             if (relativePath.equals(urlAnnotation.value())) {
                                 System.out.println("hita");
-                                Object[] args = classScanner.getArgsForMethod();
+                                Object[] args = this.getArgsForMethod();
                                 // if (args.length == 1 && args[1].equals(HashMap<String, Object>)) {
                                 //     mappedFunction = true;
                                 // }
