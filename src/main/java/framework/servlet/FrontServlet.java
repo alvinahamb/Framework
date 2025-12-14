@@ -12,8 +12,10 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import framework.annotation.Url;
+import framework.annotation.Json;
 import framework.scan.ClassScanner;
 import java.util.HashMap;
+import com.google.gson.Gson;
 
 public class FrontServlet extends HttpServlet {
     List<ClassScanner> classScanners = new ArrayList<>();
@@ -77,10 +79,11 @@ public class FrontServlet extends HttpServlet {
             // writer.write("Classe trouvee : " + classScanner.getClazz().getName() + "\n");
             // writer.write("Methode trouvee : " + classScanner.getMethod().getName() +
             // "\n\n");
+            Method method = null;
             try {
                 // Créer une instance de la classe
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
-                Method method = classScanner.getMethod();
+                method = classScanner.getMethod();
                 Object[] args = classScanner.getArgsForMethod(req);
                 Object result = null;
                 if (method.getAnnotation(Url.class).method().equalsIgnoreCase("POST") == true) {
@@ -90,7 +93,15 @@ public class FrontServlet extends HttpServlet {
                     result = method.invoke(instance, args);
                 }
                 // classScanner.test(req);
-                if (method.getReturnType().equals(String.class)) {
+                if (method.isAnnotationPresent(Json.class)) {
+                    res.setContentType("application/json");
+                    Gson gson = new Gson();
+                    HashMap<String, Object> response = new HashMap<>();
+                    response.put("status", "success");
+                    response.put("code", 200);
+                    response.put("data", result);
+                    writer.write(gson.toJson(response));
+                } else if (method.getReturnType().equals(String.class)) {
                     writer.write((String) result);
                 } else if (method.getReturnType().equals(Class.forName("framework.scan.ModelView"))) {
                     framework.scan.ModelView modelView = (framework.scan.ModelView) result;
@@ -108,8 +119,18 @@ public class FrontServlet extends HttpServlet {
                     writer.write("Retour non caracteriel : " + result + "\n");
                 }
             } catch (Exception e) {
-                res.getWriter().write("Erreur lors de l'execution de la methode : " + e.getMessage() + "\n");
-                e.printStackTrace();
+                if (method != null && method.isAnnotationPresent(Json.class)) {
+                    res.setContentType("application/json");
+                    Gson gson = new Gson();
+                    HashMap<String, Object> response = new HashMap<>();
+                    response.put("status", "error");
+                    response.put("code", 400);
+                    response.put("data", null);
+                    writer.write(gson.toJson(response));
+                } else {
+                    res.getWriter().write("Erreur lors de l'execution de la methode : " + e.getMessage() + "\n");
+                    e.printStackTrace();
+                }
             }
         } else {
             res.getWriter().write("Aucune classe trouvee pour l'URL : " + url + "\n\n");
