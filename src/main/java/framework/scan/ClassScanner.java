@@ -1,6 +1,7 @@
 package framework.scan;
 
 import java.io.File;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 import java.util.Map;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -118,7 +120,11 @@ public class ClassScanner {
                 }
                 args[i] = v;
             } else if (Map.class.isAssignableFrom(type)) {
-                args[i] = getAllPostParam(req);
+                if (req.getContentType() != null && req.getContentType().startsWith("multipart/")) {
+                    args[i] = getUploadedFiles(req);
+                } else {
+                    args[i] = getAllPostParam(req);
+                }
             } else {
                 // Treat as POJO: instantiate and populate fields from request params
                 try {
@@ -473,5 +479,25 @@ public class ClassScanner {
         } catch (Exception e) {
             return fullUrl;
         }
+    }
+
+    public Map<String, byte[]> getUploadedFiles(HttpServletRequest req) {
+        Map<String, byte[]> files = new HashMap<>();
+        try {
+            if (req.getContentType() != null && req.getContentType().startsWith("multipart/")) {
+                for (Part part : req.getParts()) {
+                    String name = part.getName();
+                    if (part.getSubmittedFileName() != null) { // It's a file
+                        try (InputStream is = part.getInputStream()) {
+                            byte[] bytes = is.readAllBytes();
+                            files.put(name, bytes);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error reading uploaded files: " + e.getMessage());
+        }
+        return files;
     }
 }
