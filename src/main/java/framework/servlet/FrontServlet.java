@@ -13,7 +13,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import framework.annotation.Url;
 import framework.annotation.Json;
+import framework.annotation.Session;
 import framework.scan.ClassScanner;
+import framework.scan.SessionScanner;
 import java.util.HashMap;
 import com.google.gson.Gson;
 
@@ -84,6 +86,7 @@ public class FrontServlet extends HttpServlet {
                 // Créer une instance de la classe
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
                 method = classScanner.getMethod();
+                SessionScanner.handleSession(method, req, res);
                 Object[] args = classScanner.getArgsForMethod(req);
                 Object result = null;
                 if (method.getAnnotation(Url.class).method().equalsIgnoreCase("POST") == true) {
