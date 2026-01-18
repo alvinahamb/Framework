@@ -3,6 +3,7 @@ package framework.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +16,7 @@ import framework.annotation.Url;
 import framework.annotation.Json;
 import framework.annotation.Session;
 import framework.scan.ClassScanner;
-import framework.scan.SessionScanner;
+import framework.scan.*;
 import java.util.HashMap;
 import com.google.gson.Gson;
 
@@ -86,6 +87,7 @@ public class FrontServlet extends HttpServlet {
                 // Créer une instance de la classe
                 Object instance = classScanner.getClazz().getDeclaredConstructor().newInstance();
                 method = classScanner.getMethod();
+                Protection.checkRole(method, res, req);
                 SessionScanner.handleSession(method, req, res);
                 Object[] args = classScanner.getArgsForMethod(req);
                 Object result = null;
